@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>zzz</title>
+<style>
+html,
+body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+}
+#score {
+    margin: 36px;
+    font-size: 24px;
+    font-weight: bold;
+    position: absolute;
+}
+#container {
+    width: 300px;
+    height: 600px;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    margin: auto;
+    position: absolute;
+}
+.block {
+    width: 30px;
+    height: 30px;
+    background-color: transparent;
+    border: 1px solid #ccc;
+    position: absolute;
+    display: border-box;
+}
+
+.block.SOLID {
+    background-color: black;
+}
+
+.block.DROP {
+    background-color: #ccc;
+}
+
+</style>
+</head>
+<body>
+<div id="score">0</div>
+<div id="container"></div>
+</body>
+<script type="text/javascript">
+var HEIGHT = 20;
+var WIDTH = 10;
+var INTERVAL = 600;
+var STD = [
+    [
+        [1, 1, 1, 1]
+    ],
+    [
+        [1, 0, 0],
+        [1, 1, 1]
+    ],
+    [
+        [0, 0, 1],
+        [1, 1, 1]
+    ],
+    [
+        [1, 1],
+        [1, 1]
+    ],
+    [
+        [0, 1, 1],
+        [1, 1, 0]
+    ],
+    [
+        [0, 1, 0],
+        [1, 1, 1]
+    ],
+    [
+        [1, 1, 0],
+        [0, 1, 1]
+    ]
+];
+var blocks = [];
+var dropping = [];
+var container;
+var score;
+
+var EMPTY = "EMPTY";
+var SOLID = "SOLID";
+// var DROP = "DROP";
+var timer;
+
+var init = function () {
+    container = document.getElementById("container");
+    score = document.getElementById("score");
+
+    for (var h = 0; h < HEIGHT; h++) {
+        blocks[h] = [];
+
+        for (var w = 0; w < WIDTH; w++) {
+            var div = document.createElement("div");
+            div.STATUS = EMPTY;
+            div.className = "block";
+            div.style.left = w * 30 + "px";
+            div.style.top = h * 30 + "px";
+            container.appendChild(div);
+            blocks[h][w] = div;
+        }
+    }
+
+    window.addEventListener("keydown", function(e) {
+
+        var key = e.keyCode;
+        if(key == 37) keyLeft();
+        if(key == 38) keyUp();
+        if(key == 39) keyRight();
+        if(key == 40) keyDown();
+    });
+
+
+    timer = setInterval(loop, INTERVAL);
+};
+
+var loop = function () {
+    logic();
+};
+
+var keyUp = function () {
+    clearInterval(timer);
+    logic("UP");
+    timer = setInterval(logic, INTERVAL);
+};
+
+var keyLeft = function () {
+    clearInterval(timer);
+    logic("LEFT");
+    timer = setInterval(logic, INTERVAL);
+};
+
+var keyRight = function () {
+    clearInterval(timer);
+    logic("RIGHT");
+    timer = setInterval(logic, INTERVAL);
+};
+
+var keyDown = function () {
+    clearInterval(timer);
+    logic();
+    timer = setInterval(logic, INTERVAL);
+};
+
+var fail = function () {
+    clearInterval(timer);
+    keyUp = keyDown = keyLeft = keyRight = function () {};
+    score.innerText = lines + " over";
+};
+
+lines = 0;
+var clearLines = function () {
+
+    for (var h = HEIGHT - 1; h >= 0; h--) {
+        var full_line = true;
+        for (var w = 0; w < WIDTH; w++) {
+            if (blocks[h][w].STATUS == EMPTY) {
+                full_line = false;
+            }
+        }
+
+        if (full_line) {
+
+            for (; h > 0; h--) {
+                for (var w = 0; w < WIDTH; w++) {
+                    blocks[h][w].STATUS = blocks[h - 1][w].STATUS;
+                }
+            }
+
+            for (var w = 0; w < WIDTH; w++) {
+                blocks[0][w].STATUS = EMPTY;
+            }
+
+
+            lines += 1;
+            score.innerText = lines;
+            return true;
+        }
+    }
+
+    return false;
+};
+
+var status = "NONE"; // or "DROPPING"
+var logic = function(direction) {
+    if (clearLines()) {
+        return;
+    }
+    if (status == "NONE") {
+        var r = parseInt(Math.random() * 1000) % STD.length;
+        clearDropping();
+        var target = STD[r];
+        // print(target);
+        var start = Math.ceil((dropping[0].length - target[0].length) / 2);
+        for (var h = 0; h < target.length; h++) {
+            for (var w = 0; w < target[h].length; w++) {
+                if (blocks[h][start + w].STATUS == SOLID) {
+                    return fail();
+                }
+                dropping[h][start + w] = target[h][w];
+            }
+        }
+        status = "DROPPING";
+    } else {
+        if (direction == "LEFT" && canleft()) {
+            dropping = makeleft(dropping);
+        } else
+        if (direction == "RIGHT" && canright()) {
+            dropping = makeright(dropping);
+        } else
+        if (direction == "UP" && canup()) {
+            dropping = makeup(dropping);
+        } else {
+            // direction == "Dow"
+            if (candown()) {
+                dropping = makedown(dropping);
+            } else {
+                makeblock();
+                status = "NONE";
+            }
+        }
+
+
+    }
+
+    // print(dropping);
+    updateUI();
+};
+
+
+var makeblock = function () {
+    for (var h = 0; h < HEIGHT; h++) {
+        for (var w = 0; w < WIDTH; w++) {
+            if (dropping[h][w]) {
+                blocks[h][w].STATUS = SOLID;
+                dropping[h][w] = 0;
+            }
+        }
+    }
+};
+
+var makeleft = function (d2arr) {
+    return d2arr.map(function (line) {
+        var l = line.slice(0);
+        var t = l.shift();
+        l.push(t);
+        return l;
+    });
+};
+
+var makeright = function (d2arr) {
+    return d2arr.map(function (line) {
+        var l = line.slice(0);
+        var t = l.pop();
+        l.unshift(t);
+        return l;
+    });
+};
+
+var makedown = function (d2arr) {
+    var ret = d2arr.map(function (line) {
+        return line.slice(0);
+    });
+    var t = ret.pop();
+    ret.unshift(t);
+    return ret;
+};
+
+var makeup = function (d2arr) {
+    var rot = [];
+    var o_t = HEIGHT;
+    var t_t = WIDTH;
+    var o_b = -1;
+    var t_b = -1;
+    var o_l = WIDTH;
+    var t_l = HEIGHT;
+    var o_r = 0;
+    var t_r = 0;
+    for (var w = 0; w < WIDTH; w++) {
+        rot[w] = [];
+        for (var h = 0; h < HEIGHT; h++) {
+            var new_h = HEIGHT - h;
+            rot[w][new_h] = dropping[h][w];
+            if (rot[w][new_h]) {
+
+                if (h < o_t) { o_t = h; }
+                if (h > o_b) { o_b = h; }
+                if (w < o_l) { o_l = w; }
+                if (w > o_r) { o_r = w; }
+                if (w < t_t) { t_t = w; }
+                if (w > t_b) { t_b = w; }
+                if (new_h < t_l) { t_l = new_h; }
+                if (new_h > t_r) { t_r = new_h; }
+            }
+        }
+    }
+
+    var ret = [];
+    for (var h = 0; h < HEIGHT; h++) {
+        ret[h] = [];
+        for (var w = 0; w < WIDTH; w++) {
+            ret[h][w] = 0;
+        }
+    }
+
+    if (o_l < WIDTH / 2) {
+        var _o_r = o_r;
+        o_r = o_l + (o_b - o_t);
+        o_t = o_b - (_o_r - o_l);
+    } else {
+        var _o_l = o_l;
+        o_l = o_r - (o_b - o_t);
+        o_t = o_b - (o_r - _o_l);
+    }
+    while (o_t < 0) {
+        o_t += 1;
+        o_b += 1;
+    }
+    for (var h = o_t; h <= o_b; h++) {
+        for (var w = o_l; w <= o_r; w++) {
+            ret[h][w] = rot[t_t + h - o_t][t_l + w - o_l];
+        }
+    }
+
+    return ret;
+};
+
+var canup = function () {
+    var t_dropping = makeup(dropping);
+    for (var h = 0; h < HEIGHT; h++) {
+        for (var w = 0; w < WIDTH; w++) {
+            if (t_dropping[h][w] && blocks[h][w].STATUS == "SOLID") {
+                return false;
+            }
+        }
+    }
+
+    return true;
+};
+
+var candown = function() {
+    var line = dropping[HEIGHT - 1];
+    for (var w = 0; w < WIDTH; w++) {
+        if (line[w]) {
+            return false;
+        }
+    }
+    var t_dropping = makedown(dropping);
+    for (var h = 0; h < HEIGHT; h++) {
+        for (var w = 0; w < WIDTH; w++) {
+            if (t_dropping[h][w] && blocks[h][w].STATUS == "SOLID") {
+                return false;
+            }
+        }
+    }
+
+    return true;
+};
+
+var canleft = function() {
+    for (var h = 0; h < dropping.length; h++) {
+        if (dropping[h][0]) {
+            return false;
+        }
+    }
+    var t_dropping = makeleft(dropping);
+    for (var h = 0; h < HEIGHT; h++) {
+        for (var w = 0; w < WIDTH; w++) {
+            if (t_dropping[h][w] && blocks[h][w].STATUS == "SOLID") {
+                return false;
+            }
+        }
+    }
+
+    return true;
+};
+var canright = function() {
+    for (var h = 0; h < dropping.length; h++) {
+        if (dropping[h][WIDTH - 1]) {
+            return false;
+        }
+    }
+    var t_dropping = makeright  (dropping);
+    for (var h = 0; h < HEIGHT; h++) {
+        for (var w = 0; w < WIDTH; w++) {
+            if (t_dropping[h][w] && blocks[h][w].STATUS == "SOLID") {
+                return false;
+            }
+        }
+    }
+
+    return true;
+};
+
+var updateUI = function () {
+    for (var h = 0; h < HEIGHT; h++) {
+        for (var w = 0; w < WIDTH; w++) {
+            var block = blocks[h][w];
+            block.className = "block " + block.STATUS;
+            if (dropping[h][w] === 1) {
+                block.className = "block DROP";
+            }
+        }
+    }
+};
+
+var clearDropping = function() {
+    for (var h = 0; h < HEIGHT; h++) {
+        dropping[h] = [];
+        for (var w = 0; w < WIDTH; w++) {
+            dropping[h][w] = 0;
+        }
+    }
+};
+
+var print = function(d2arr) {
+    var lines = d2arr.map(function (arr) { return arr.join(""); })
+    lines = lines.join("\n");
+    console.log(lines);
+};
+
+window.addEventListener("load", init);
+
+</script>
+</html>
