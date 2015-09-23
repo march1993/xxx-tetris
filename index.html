@@ -146,6 +146,7 @@ var init = function () {
     document.body.addEventListener("touchstart", startmove);
     document.body.addEventListener("touchmove", moving);
     document.body.addEventListener("touchend", stopmove);
+    document.body.addEventListener("click", keyUp);
 
     timer = setInterval(loop, INTERVAL);
 };
@@ -439,7 +440,7 @@ var updateUI = function () {
             var block = blocks[h][w];
             if (dropping[h][w] === 1) {
                 block.className = "block DROP c" + current;
-                block.style.opacity = "0.8";
+                block.style.opacity = "0.5";
             } else {
                 block.className = "block " + block.STATUS + " c" + block.TYPE;
                 block.style.opacity = "1";
@@ -466,20 +467,23 @@ var print = function(d2arr) {
 
 
 var moving = false;
-var hasUpped = false;
 var lastX;
 var lastY;
+var time_start = 0;
+
 var startmove = function (event) {
     if (event.targetTouches.length == 1) {
         event.preventDefault();// 阻止浏览器默认事件，重要 
         var touch = event.targetTouches[0];
         lastX = touch.pageX;
         lastY = touch.pageY;
+        time_start = + new Date;
         moving = true;
     }
 };
 
-var THRESHOLD = 50;
+var THRESHOLD = 40;
+var THRESHOLD2 = 200;
 var moving = function (event) {
 
      // 如果这个元素的位置内只有一个手指的话
@@ -493,21 +497,21 @@ var moving = function (event) {
         if (deltaX > THRESHOLD && Math.abs(deltaY) <= THRESHOLD) {
             keyRight();
             startmove(event);
+            time_start = 0;
         } else
         if (deltaX < - THRESHOLD && Math.abs(deltaY) <= THRESHOLD) {
             keyLeft();
             startmove(event);
+            time_start = 0;
         } else
         if (deltaY > THRESHOLD && Math.abs(deltaX) <= THRESHOLD) {
             keyDown();
             startmove(event);
+            time_start = 0;
         } else
         if (deltaY < - THRESHOLD && Math.abs(deltaX) <= THRESHOLD) {
-            if (! hasUpped) {
-                keyUp();
-                hasUpped = true;
-            }
             startmove(event);
+            time_start = 0;
         }
 
     }
@@ -515,14 +519,18 @@ var moving = function (event) {
 };
 
 var stopmove = function (event) {
+
+    var time_end = + new Date;
+    var delta = time_end - time_start;
+
+    if (delta < THRESHOLD2) {
+        keyUp();
+    }
+
     moving = false;
-    hasUpped = false;
+
 };
 
-var getRandColor = function() {
-
-    var c = hslToRgb(Math.random(), 0.7, 1);
-};
 
 window.addEventListener("load", init);
 
