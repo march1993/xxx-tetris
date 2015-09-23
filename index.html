@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0;" name="viewport" />
+<meta content="width=device-width, initial-scale=0.75, maximum-scale=1.0, user-scalable=0;" name="viewport" />
 <title>Tetris for xxx</title>
 <style>
 html,
@@ -16,6 +16,7 @@ body {
     font-size: 24px;
     font-weight: bold;
     position: absolute;
+    font-family: sans-serif;
 }
 #container {
     width: 300px;
@@ -36,12 +37,32 @@ body {
     display: border-box;
 }
 
-.block.SOLID {
-    background-color: black;
+.c0 {
+    background-color: #33CCCC;
 }
 
-.block.DROP {
-    background-color: #ccc;
+.c1 {
+    background-color: #0066FF;
+}
+
+.c2 {
+    background-color: #FF9933;
+}
+
+.c3 {
+    background-color: #CCFF33;
+}
+
+.c4 {
+    background-color: #33CC33;
+}
+
+.c5 {
+    background-color: #9966FF;
+}
+
+.c6 {
+    background-color: #FF5050;
 }
 
 </style>
@@ -92,6 +113,7 @@ var EMPTY = "EMPTY";
 var SOLID = "SOLID";
 // var DROP = "DROP";
 var timer;
+var current = 0;
 
 var init = function () {
     container = document.getElementById("container");
@@ -103,6 +125,7 @@ var init = function () {
         for (var w = 0; w < WIDTH; w++) {
             var div = document.createElement("div");
             div.STATUS = EMPTY;
+            div.TYPE = -1;
             div.className = "block";
             div.style.left = w * 30 + "px";
             div.style.top = h * 30 + "px";
@@ -120,6 +143,9 @@ var init = function () {
         if(key == 40) keyDown();
     });
 
+    document.body.addEventListener("touchstart", startmove);
+    document.body.addEventListener("touchmove", moving);
+    document.body.addEventListener("touchend", stopmove);
 
     timer = setInterval(loop, INTERVAL);
 };
@@ -175,11 +201,13 @@ var clearLines = function () {
             for (; h > 0; h--) {
                 for (var w = 0; w < WIDTH; w++) {
                     blocks[h][w].STATUS = blocks[h - 1][w].STATUS;
+                    blocks[h][w].TYPE = blocks[h - 1][w].TYPE;
                 }
             }
 
             for (var w = 0; w < WIDTH; w++) {
                 blocks[0][w].STATUS = EMPTY;
+                blocks[0][w].TYPE = -1;
             }
 
 
@@ -199,6 +227,7 @@ var logic = function(direction) {
     }
     if (status == "NONE") {
         var r = parseInt(Math.random() * 1000) % STD.length;
+        current = r;
         clearDropping();
         var target = STD[r];
         // print(target);
@@ -244,6 +273,7 @@ var makeblock = function () {
         for (var w = 0; w < WIDTH; w++) {
             if (dropping[h][w]) {
                 blocks[h][w].STATUS = SOLID;
+                blocks[h][w].TYPE = current;
                 dropping[h][w] = 0;
             }
         }
@@ -407,9 +437,12 @@ var updateUI = function () {
     for (var h = 0; h < HEIGHT; h++) {
         for (var w = 0; w < WIDTH; w++) {
             var block = blocks[h][w];
-            block.className = "block " + block.STATUS;
             if (dropping[h][w] === 1) {
-                block.className = "block DROP";
+                block.className = "block DROP c" + current;
+                block.style.opacity = "0.8";
+            } else {
+                block.className = "block " + block.STATUS + " c" + block.TYPE;
+                block.style.opacity = "1";
             }
         }
     }
@@ -428,6 +461,67 @@ var print = function(d2arr) {
     var lines = d2arr.map(function (arr) { return arr.join(""); })
     lines = lines.join("\n");
     console.log(lines);
+};
+
+
+
+var moving = false;
+var hasUpped = false;
+var lastX;
+var lastY;
+var startmove = function (event) {
+    if (event.targetTouches.length == 1) {
+        event.preventDefault();// 阻止浏览器默认事件，重要 
+        var touch = event.targetTouches[0];
+        lastX = touch.pageX;
+        lastY = touch.pageY;
+        moving = true;
+    }
+};
+
+var THRESHOLD = 50;
+var moving = function (event) {
+
+     // 如果这个元素的位置内只有一个手指的话
+    if (event.targetTouches.length == 1) {
+        event.preventDefault();// 阻止浏览器默认事件，重要 
+        var touch = event.targetTouches[0];
+
+        var deltaX = touch.pageX - lastX;
+        var deltaY = touch.pageY - lastY;
+
+        if (deltaX > THRESHOLD && Math.abs(deltaY) <= THRESHOLD) {
+            keyRight();
+            startmove(event);
+        } else
+        if (deltaX < - THRESHOLD && Math.abs(deltaY) <= THRESHOLD) {
+            keyLeft();
+            startmove(event);
+        } else
+        if (deltaY > THRESHOLD && Math.abs(deltaX) <= THRESHOLD) {
+            keyDown();
+            startmove(event);
+        } else
+        if (deltaY < - THRESHOLD && Math.abs(deltaX) <= THRESHOLD) {
+            if (! hasUpped) {
+                keyUp();
+                hasUpped = true;
+            }
+            startmove(event);
+        }
+
+    }
+
+};
+
+var stopmove = function (event) {
+    moving = false;
+    hasUpped = false;
+};
+
+var getRandColor = function() {
+
+    var c = hslToRgb(Math.random(), 0.7, 1);
 };
 
 window.addEventListener("load", init);
